@@ -1,0 +1,7 @@
+click
+textual
+rich
+mysql-connector-python
+requests
+httpx
+python-dotenv

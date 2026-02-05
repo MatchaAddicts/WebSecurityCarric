@@ -1,0 +1,23 @@
+.env
+Virtual/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Reports (optional - may want to keep)
+reports/*.pdf
+reports/*.html
+
+# OS
+.DS_Store
+Thumbs.db

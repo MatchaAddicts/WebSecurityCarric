@@ -1,0 +1,2 @@
+[console_scripts]
+webber-attack = src.cli.main:main

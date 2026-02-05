@@ -1,0 +1,258 @@
+{
+  "meta": {
+    "version": "2025.3",
+    "description": "OWASP Top 10:2025 - Strict User Compliance (JWT=A01)"
+  },
+  "signatures": [
+    {
+      "category": "A01",
+      "type": "Broken Access",
+      "indicators": [
+        "Access Denied",
+        "Unauthorized",
+        "403 Forbidden",
+        "admin panel",
+        "role: admin"
+      ],
+      "must_match_payload": false
+    },
+    {
+      "category": "A01",
+      "type": "JWT Manipulation",
+      "indicators": [
+        "eyJ",
+        "Bearer ",
+        "jwt_decode",
+        "unsigned token",
+        "none algorithm"
+      ],
+      "must_match_payload": false
+    },
+    {
+        "category": "A05",
+        "type": "Injection",
+        "indicators": [
+            "UNION SELECT",
+            "UNION ALL",
+            "OR 1=",
+
+            "SQL syntax",
+            "mysql_fetch",
+            "SQLiteException",
+            "ORA-", 
+            "syntax error",
+            
+            "<script", 
+            "alert(", 
+            "onerror=", 
+            "javascript:" 
+        ],
+        "must_match_payload": false 
+    },
+    {
+      "category": "A06",
+      "type": "Insecure Design",
+      "indicators": [
+        "coupon",
+        "discount",
+        "negative balance",
+        "logic error",
+        "business logic"
+      ],
+      "must_match_payload": false
+    },
+    {
+      "category": "A10",
+      "type": "Unhandled Exception",
+      "indicators": [
+        "Traceback",
+        "NullPointerException",
+        "SyntaxError",
+        "Fatal error",
+        "internal server error"
+      ],
+      "must_match_payload": false
+    },
+    {
+      "category": "A03",
+      "type": "Supply Chain",
+      "indicators": [
+        "package.json",
+        "node_modules",
+        "composer.json",
+        "yarn.lock",
+        "jquery-",
+        "outdated"
+      ],
+      "must_match_payload": false
+    },
+    {
+      "category": "A04",
+      "type": "Weak Crypto",
+      "indicators": [
+        "Basic YWRtaW46",
+        "md5(",
+        "sha1(",
+        "-----BEGIN RSA PRIVATE KEY-----"
+      ],
+      "must_match_payload": false
+    },
+    {
+      "category": "A08",
+      "type": "Integrity Failure",
+      "indicators": [
+        "rO0AB",
+        "cafebabe",
+        "AC ED 00 05",
+        "serialization",
+        "object input stream"
+      ],
+      "must_match_payload": false
+    },
+    {
+      "category": "A02",
+      "type": "Misconfiguration",
+      "indicators": [
+        ".env",
+        "phpinfo()",
+        "server-status",
+        "Index of /"
+      ],
+      "must_match_payload": false
+    },
+    {
+      "category": "A09",
+      "type": "Logging Failure",
+      "indicators": [
+        "access.log",
+        "error.log",
+        "splunk",
+        "no logging detected"
+      ],
+      "must_match_payload": false
+    },
+    {
+      "category": "A07",
+      "type": "Auth Failure",
+      "indicators": [
+        "Invalid password",
+        "User not found",
+        "session_id",
+        "PHPSESSID"
+      ],
+      "must_match_payload": false
+    }
+  ],
+  "juice_shop_challenges": {
+    "API-only XSS": "A05",
+    "Access Log": "A09",
+    "Admin Registration": "A10",
+    "Admin Section": "A01",
+    "Arbitrary File Write": "A03",
+    "Bjoern's Favorite Pet": "A07",
+    "Blockchain Hype": "A06",
+    "NFT Takeover": "A04",
+    "Mint the Honey Pot": "A10",
+    "Wallet Depletion": "A06",
+    "Web3 Sandbox": "A01",
+    "Blocked RCE DoS": "A06",
+    "CAPTCHA Bypass": "A06",
+    "Change Bender's Password": "A07",
+    "Christmas Special": "A05",
+    "CSP Bypass": "A05",
+    "Client-side XSS Protection": "A05",
+    "Confidential Document": "A04",
+    "DOM XSS": "A05",
+    "Database Schema": "A05",
+    "Deprecated Interface": "A02",
+    "Easter Egg": "A01",
+    "Email Leak": "A04",
+    "Empty User Registration": "A10",
+    "Ephemeral Accountant": "A05",
+    "Error Handling": "A10",
+    "Expired Coupon": "A10",
+    "Extra Language": "A06",
+    "Five-Star Feedback": "A01",
+    "Forged Coupon": "A06",
+    "Forged Feedback": "A01",
+    "Forged Review": "A01",
+    "Forged Signed JWT": "A01",
+    "Forgotten Developer Backup": "A04",
+    "Forgotten Sales Backup": "A04",
+    "Frontend Typosquatting": "A03",
+    "GDPR Data Erasure": "A07",
+    "GDPR Data Theft": "A04",
+    "HTTP-Header XSS": "A05",
+    "Imaginary Challenge": "A04",
+    "Leaked Access Logs": "A09",
+    "Leaked Unsafe Product": "A04",
+    "Legacy Typosquatting": "A03",
+    "Login Admin": "A05",
+    "Login Amy": "A04",
+    "Login Bender": "A05",
+    "Login Bjoern": "A07",
+    "Login Jim": "A05",
+    "Login MC SafeSearch": "A04",
+    "Login Support Team": "A02",
+    "Manipulate Basket": "A01",
+    "Misplaced Signature File": "A09",
+    "Multiple Likes": "A06",
+    "Nested Easter Egg": "A04",
+    "NoSQL DoS": "A05",
+    "NoSQL Exfiltration": "A05",
+    "NoSQL Manipulation": "A05",
+    "Outdated Allowlist": "A10",
+    "Password Strength": "A07",
+    "Payback Time": "A10",
+    "Premium Paywall": "A04",
+    "Privacy Policy": "A06",
+    "Privacy Policy Inspection": "A06",
+    "Product Tampering": "A01",
+    "Reflected XSS": "A05",
+    "Repetitive Registration": "A06",
+    "Reset Bender's Password": "A07",
+    "Reset Bjoern's Password": "A07",
+    "Reset Jim's Password": "A07",
+    "Reset Morty's Password": "A06",
+    "Retrieve Blueprint": "A04",
+    "SSRF": "A01",
+    "SSTi": "A05",
+    "Score Board": "A06",
+    "Security Policy": "A06",
+    "Server-side XSS Protection": "A05",
+    "Steganography": "A06",
+    "Successful RCE DoS": "A08",
+    "Supply Chain Attack": "A03",
+    "Two Factor Authentication": "A07",
+    "Unsigned JWT": "A01",
+    "Upload Size": "A10",
+    "Upload Type": "A10",
+    "User Credentials": "A05",
+    "Video XSS": "A05",
+    "View Basket": "A01",
+    "Vulnerable Library": "A03",
+    "Weird Crypto": "A04",
+    "Allowlist Bypass": "A06",
+    "XXE Data Access": "A06",
+    "XXE DoS": "A06",
+    "Memory Bomb": "A08",
+    "Zero Stars": "A06",
+    "Missing Encoding": "A10",
+    "Cross-Site Imaging": "A02",
+    "Exposed Metrics": "A09",
+    "Deluxe Fraud": "A10",
+    "CSRF": "A01",
+    "Bonus Payload": "A05",
+    "Reset Uvogin's Password": "A04",
+    "Meta Geo Stalking": "A04",
+    "Visual Geo Stalking": "A04",
+    "Kill Chatbot": "A03",
+    "Poison Null Byte": "A10",
+    "Bully Chatbot": "A06",
+    "Local File Read": "A03",
+    "Mass Dispel": "A06",
+    "Security Advisory": "A06",
+    "Exposed credentials": "A04",
+    "Leaked API Key": "A04"
+  }
+}

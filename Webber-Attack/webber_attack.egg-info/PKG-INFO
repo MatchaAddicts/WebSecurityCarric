@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: webber-attack
+Version: 1.0.0
+Requires-Dist: click
+Requires-Dist: textual
+Requires-Dist: rich
+Requires-Dist: mysql-connector-python
+Requires-Dist: requests
+Requires-Dist: httpx
+Requires-Dist: python-dotenv
+Dynamic: requires-dist
