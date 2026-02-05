@@ -1,0 +1,10 @@
+export { TitleSlide } from './TitleSlide';
+export { AgendaSlide } from './AgendaSlide';
+export { TeamLinksSlide } from './TeamLinksSlide';
+export { IntroductionSlide } from './IntroductionSlide';
+export { ContentSlide } from './ContentSlide';
+export { FeaturesSlide } from './FeaturesSlide';
+export { GenerativeAISlide } from './GenerativeAISlide';
+export { DemoSlide } from './DemoSlide';
+export { ConclusionSlide } from './ConclusionSlide';
+export { ThankYouSlide } from './ThankYouSlide';
