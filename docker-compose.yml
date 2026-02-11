@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  vegetarian-juice-shop:
+    build: .
+    container_name: vegetarian-juice-shop
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    volumes:
+      - ./uploads:/app/uploads
+      - juice-db:/app
+    restart: unless-stopped
+    networks:
+      - juice-net
+
+  # Optional: Second instance for remediated version comparison
+  vegetarian-juice-shop-clean:
+    build: .
+    container_name: vegetarian-juice-shop-clean
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      - juice-db-clean:/app
+    restart: unless-stopped
+    networks:
+      - juice-net
+    profiles:
+      - clean
+
+volumes:
+  juice-db:
+  juice-db-clean:
+
+networks:
+  juice-net:
+    driver: bridge
