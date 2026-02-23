@@ -50,28 +50,41 @@ router.put('/profile', verifyToken, (req, res) => {
     const setClauses = [];
     const values = [];
 
+    // VULNERABILITY: A03:2025 Supply Chain - Prototype Pollution
+    // Check for prototype pollution attempts before processing
+    const pollutionDetected = fields['__proto__'] !== undefined ||
+      fields['constructor'] !== undefined ||
+      fields['prototype'] !== undefined;
+
     for (const [key, value] of Object.entries(fields)) {
-      if (key !== 'id') { // Only protect id from modification
+      if (key !== 'id' && key !== '__proto__' && key !== 'constructor' && key !== 'prototype') {
         setClauses.push(`${key} = ?`);
         values.push(value);
       }
     }
 
-    if (setClauses.length === 0) {
+    if (setClauses.length === 0 && !pollutionDetected) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    values.push(userId);
-    const query = `UPDATE users SET ${setClauses.join(', ')} WHERE id = ?`;
-    db.prepare(query).run(...values);
+    if (setClauses.length > 0) {
+      values.push(userId);
+      const query = `UPDATE users SET ${setClauses.join(', ')} WHERE id = ?`;
+      db.prepare(query).run(...values);
+    }
 
     const updated = db.prepare('SELECT id, username, email, role, wallet_balance FROM users WHERE id = ?').get(userId);
 
     const response = { user: updated, message: 'Profile updated' };
 
-    // Check if role was changed to admin
+    // Check if role was changed to admin (A06:2025 - Insecure Design)
     if (fields.role === 'admin') {
       response.flag = 'VJS{m4ss_4ss1gn_r0l3}';
+    }
+
+    // Detect prototype pollution attempt (A03:2025 - Supply Chain)
+    if (pollutionDetected) {
+      response.flag_supply_chain = 'VJS{pr0t0typ3_p0llut10n}';
     }
 
     res.json(response);
@@ -89,6 +102,7 @@ router.post('/wallet/topup', verifyToken, (req, res) => {
   // VULNERABILITY: Uses user_id from body, not from token
   const targetUserId = user_id || req.user.id;
 
+  // VULNERABILITY: A10:2025 - No validation on extremely large amounts (integer overflow)
   if (!amount || amount <= 0) {
     return res.status(400).json({ error: 'Invalid amount' });
   }
@@ -99,9 +113,14 @@ router.post('/wallet/topup', verifyToken, (req, res) => {
 
     const response = { user, message: `Wallet topped up by $${amount}` };
 
-    // VULNERABILITY: Horizontal privilege escalation detected
+    // VULNERABILITY: Horizontal privilege escalation detected (A01:2025)
     if (targetUserId !== req.user.id) {
       response.flag = 'VJS{h0r1z0nt4l_pr1v_3sc}';
+    }
+
+    // VULNERABILITY: A10:2025 - Integer overflow / exceptional value
+    if (amount > 1000000 || amount === Number.MAX_SAFE_INTEGER || !Number.isFinite(amount)) {
+      response.flag_overflow = 'VJS{1nt3g3r_0v3rfl0w_w4ll3t}';
     }
 
     res.json(response);
