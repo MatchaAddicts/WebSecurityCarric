@@ -31,6 +31,9 @@ app.use(cookieParser());
 // Serve static files
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
+// VULNERABILITY: A03:2025 Supply Chain - Serve package files (lockfile exposure)
+app.use(express.static(path.join(__dirname, '..')));
+
 // VULNERABILITY: Expose server info in headers
 app.use((req, res, next) => {
   res.setHeader('X-Powered-By', 'Express 4.18.2');
@@ -50,6 +53,68 @@ app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/files', require('./routes/files'));
 app.use('/api/coupons', require('./routes/coupons'));
+
+// VULNERABILITY: A03:2025 Supply Chain - package-lock.json accessible
+app.get('/package-lock.json', (req, res) => {
+  const lockfilePath = path.join(__dirname, '..', 'package-lock.json');
+  res.json({
+    flag: 'VJS{l0ckf1l3_3xp0s3d}',
+    message: 'You found the exposed lockfile! This reveals exact dependency versions.',
+    hint: 'Run npm audit against these versions to find known CVEs.',
+    lockfile_path: lockfilePath
+  });
+});
+
+// VULNERABILITY: A03:2025 Supply Chain - npm audit info
+app.get('/api/dependencies', (req, res) => {
+  const pkg = require('../package.json');
+  res.json({
+    flag: 'VJS{vuln3r4bl3_d3ps_f0und}',
+    dependencies: pkg.dependencies,
+    note: 'Several of these packages have known CVEs. The application uses md5 for password hashing, an outdated multer, and xml2js with XXE risks.',
+    vulnerable_packages: [
+      { name: 'md5', issue: 'MD5 is cryptographically broken, should use bcrypt/argon2' },
+      { name: 'multer', issue: 'v1.x has known vulnerabilities, should upgrade to v2.x' },
+      { name: 'xml2js', issue: 'XXE risks if not properly configured' },
+      { name: 'jsonwebtoken', issue: 'Using weak secret and accepting "none" algorithm' }
+    ]
+  });
+});
+
+// VULNERABILITY: A10:2025 - Type confusion endpoint
+app.post('/api/validate', (req, res) => {
+  const { value, expected_type } = req.body;
+
+  // VULNERABILITY: No type checking - processes whatever is sent
+  try {
+    let result;
+    if (expected_type === 'number') {
+      // Doesn't actually verify it's a number
+      result = value + 1;
+    } else if (expected_type === 'string') {
+      result = value.toUpperCase();
+    } else {
+      result = value;
+    }
+
+    const response = { result, input_type: typeof value, expected_type };
+
+    // Detect type confusion
+    if (typeof value !== expected_type) {
+      response.flag = 'VJS{typ3_c0nfus10n_3rr0r}';
+      response.note = `Expected ${expected_type} but received ${typeof value}`;
+    }
+
+    res.json(response);
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+      flag: 'VJS{typ3_c0nfus10n_3rr0r}',
+      note: `Type confusion caused error: expected ${expected_type} but got ${typeof value}`,
+      stack: err.stack
+    });
+  }
+});
 
 // VULNERABILITY: Unprotected API documentation
 app.get('/api-docs', (req, res) => {

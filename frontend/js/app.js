@@ -152,15 +152,19 @@ function getProductEmoji(category) {
   return emojis[category] || emojis['default'];
 }
 
-// Category CSS class
+// Category CSS class (OWASP Top 10:2025)
 function getCategoryClass(category) {
   const map = {
-    'Injection': 'cat-injection',
-    'XSS': 'cat-xss',
     'Broken Access Control': 'cat-access',
-    'Authentication': 'cat-auth',
-    'Misconfiguration': 'cat-misc',
-    'Cryptographic Failures': 'cat-crypto'
+    'Security Misconfiguration': 'cat-misc',
+    'Supply Chain': 'cat-supply',
+    'Cryptographic Failures': 'cat-crypto',
+    'Injection': 'cat-injection',
+    'Insecure Design': 'cat-design',
+    'Authentication Failures': 'cat-auth',
+    'Integrity Failures': 'cat-integrity',
+    'Logging Failures': 'cat-logging',
+    'Exceptional Conditions': 'cat-exceptional',
   };
   return map[category] || 'cat-other';
 }

@@ -590,12 +590,17 @@ tr:hover {
   margin-right: 0.3rem;
 }
 
-.cat-injection { background: #ffcdd2; color: #c62828; }
-.cat-xss { background: #f3e5f5; color: #7b1fa2; }
-.cat-access { background: #e3f2fd; color: #1565c0; }
-.cat-auth { background: #fff3e0; color: #e65100; }
-.cat-misc { background: #e8eaf6; color: #283593; }
-.cat-crypto { background: #fce4ec; color: #ad1457; }
+/* OWASP Top 10:2025 category colors */
+.cat-access { background: #e3f2fd; color: #1565c0; }        /* A01 Broken Access Control */
+.cat-misc { background: #e8eaf6; color: #283593; }          /* A02 Security Misconfiguration */
+.cat-supply { background: #fff8e1; color: #f57f17; }        /* A03 Supply Chain (NEW) */
+.cat-crypto { background: #fce4ec; color: #ad1457; }        /* A04 Cryptographic Failures */
+.cat-injection { background: #ffcdd2; color: #c62828; }     /* A05 Injection */
+.cat-design { background: #f3e5f5; color: #7b1fa2; }        /* A06 Insecure Design */
+.cat-auth { background: #fff3e0; color: #e65100; }          /* A07 Authentication Failures */
+.cat-integrity { background: #e8f5e9; color: #2e7d32; }     /* A08 Integrity Failures */
+.cat-logging { background: #e0f7fa; color: #00695c; }       /* A09 Logging Failures */
+.cat-exceptional { background: #fbe9e7; color: #bf360c; }   /* A10 Exceptional Conditions (NEW) */
 .cat-other { background: #e0f2f1; color: #00695c; }
 
 /* Footer */

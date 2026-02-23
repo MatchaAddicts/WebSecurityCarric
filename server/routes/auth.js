@@ -4,6 +4,10 @@ const md5 = require('md5');
 const { getDb } = require('../db/schema');
 const { signToken } = require('../middleware/auth');
 
+// VULNERABILITY: A09:2025 - No rate limiting, no logging of failed attempts
+// Track failed attempts in-memory (intentionally non-persistent and non-blocking)
+const failedAttempts = {};
+
 // POST /api/auth/login
 // VULNERABILITY: SQL Injection in login
 router.post('/login', (req, res) => {
@@ -57,7 +61,19 @@ router.post('/login', (req, res) => {
         // ignore SQLi errors silently
       }
 
-      return res.status(401).json({ error: 'Invalid email or password' });
+      // VULNERABILITY: A09:2025 - Track failed attempts but never lock out or alert
+      failedAttempts[email] = (failedAttempts[email] || 0) + 1;
+      const attempts = failedAttempts[email];
+
+      const errorResponse = { error: 'Invalid email or password' };
+
+      // After 10 failed attempts, reveal the logging failure flag
+      if (attempts >= 10) {
+        errorResponse.flag = 'VJS{n0_l0gg1ng_0r_4l3rt}';
+        errorResponse.note = `${attempts} failed attempts for this account and still no lockout!`;
+      }
+
+      return res.status(401).json(errorResponse);
     }
 
     const token = signToken({

@@ -85,13 +85,26 @@ router.post('/', verifyToken, (req, res) => {
     // Deduct from wallet (but no check if balance is sufficient)
     db.prepare('UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?').run(total, req.user.id);
 
-    res.status(201).json({
+    const response = {
       order_id: orderResult.lastInsertRowid,
       total,
       discount,
       items: validItems,
       message: 'Order placed successfully'
-    });
+    };
+
+    // VULNERABILITY: A10:2025 - Negative quantities allowed (exceptional conditions)
+    const hasNegativeQty = validItems.some(i => i.quantity < 0);
+    if (hasNegativeQty) {
+      response.flag = 'VJS{n3g4t1v3_qu4nt1ty_cr3d1t}';
+    }
+
+    // VULNERABILITY: A08:2025 - Client-submitted prices accepted without DB verification
+    if (req.body.items && req.body.items.some(i => i.price !== undefined)) {
+      response.flag_integrity = 'VJS{d4t4_1nt3gr1ty_f41l}';
+    }
+
+    res.status(201).json(response);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

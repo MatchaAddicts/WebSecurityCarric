@@ -6,12 +6,12 @@ An intentionally vulnerable web application for security testing and training, i
 
 ## Overview
 
-Vegetarian Juice Shop is a modern web application for a fictional vegetarian juice company. It contains **28+ intentional security vulnerabilities** spanning the OWASP Top 10 categories, with a built-in **scoreboard** and **challenge tracking system** for individual users.
+Vegetarian Juice Shop is a modern web application for a fictional vegetarian juice company. It contains **35+ intentional security vulnerabilities** spanning all **OWASP Top 10:2025** categories, with a built-in **scoreboard** and **challenge tracking system** for individual users.
 
 ## Features
 
 - Full e-commerce juice shop (products, cart, orders, reviews)
-- 28+ security challenges across OWASP Top 10 categories
+- 35+ security challenges across all OWASP Top 10:2025 categories
 - Individual user scoreboard with progress tracking
 - Global leaderboard with rankings
 - Flag-based challenge verification (`VJS{...}` format)
@@ -20,25 +20,20 @@ Vegetarian Juice Shop is a modern web application for a fictional vegetarian jui
 - Hint system for each challenge
 - Real-time challenge solve notifications
 
-## Vulnerability Categories
+## OWASP Top 10:2025 Vulnerability Categories
 
-| Category | Count | OWASP |
-|----------|-------|-------|
-| SQL Injection | 3 | A03:2021 |
-| Cross-Site Scripting (XSS) | 3 | A03:2021 |
-| Broken Access Control (IDOR) | 4 | A01:2021 |
-| Authentication Failures | 3 | A07:2021 |
-| Security Misconfiguration | 3 | A05:2021 |
-| Cryptographic Failures | 3 | A02:2021 |
-| SSRF | 1 | A10:2021 |
-| XXE | 1 | A05:2021 |
-| File Upload | 1 | A04:2021 |
-| CSRF | 1 | A01:2021 |
-| Mass Assignment | 1 | A04:2021 |
-| Race Condition | 1 | A04:2021 |
-| Reconnaissance | 1 | A05:2021 |
-| Null Byte Injection | 1 | A03:2021 |
-| NoSQL-style Injection | 1 | A03:2021 |
+| OWASP 2025 | Category | Challenges | Description |
+|------------|----------|------------|-------------|
+| **A01:2025** | Broken Access Control | 6 | IDOR, admin bypass, CSRF, SSRF, forged reviews, privilege escalation |
+| **A02:2025** | Security Misconfiguration | 5 | Verbose errors, path traversal, default creds, hidden pages, XXE |
+| **A03:2025** | Software Supply Chain Failures | 3 | Outdated deps, exposed lockfile, prototype pollution (**NEW in 2025**) |
+| **A04:2025** | Cryptographic Failures | 3 | MD5 hashing, exposed API docs/secrets, weak JWT secret |
+| **A05:2025** | Injection | 8 | SQL injection (3), XSS (3), null byte, NoSQL-style injection |
+| **A06:2025** | Insecure Design | 3 | Unrestricted file upload, mass assignment, race condition |
+| **A07:2025** | Authentication Failures | 3 | Weak password, JWT none algorithm, broken password reset |
+| **A08:2025** | Software & Data Integrity Failures | 1 | Client-side price tampering, unsigned data |
+| **A09:2025** | Security Logging & Alerting Failures | 1 | No rate limiting, no failed login alerts |
+| **A10:2025** | Mishandling of Exceptional Conditions | 3 | Negative quantities, type confusion, integer overflow (**NEW in 2025**) |
 
 ## Quick Start
 
@@ -81,18 +76,24 @@ Flags follow the format: `VJS{flag_content_here}`
 
 ## API Endpoints
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api-docs` | API documentation (vulnerable: exposed) |
-| `POST /api/auth/login` | Login (vulnerable: SQLi) |
-| `GET /api/products/search?q=` | Search (vulnerable: SQLi, reflected XSS) |
-| `GET /api/users/profile/:id` | Profile (vulnerable: IDOR) |
-| `PUT /api/users/profile` | Update profile (vulnerable: mass assignment) |
-| `POST /api/reviews` | Post review (vulnerable: stored XSS, forged user) |
-| `GET /api/files/download?file=` | Download (vulnerable: path traversal) |
-| `GET /api/scoreboard` | Global leaderboard |
-| `GET /api/scoreboard/user/:id` | Individual progress |
-| `POST /api/challenges/verify` | Submit a flag |
+| Endpoint | Description | OWASP |
+|----------|-------------|-------|
+| `POST /api/auth/login` | Login (SQLi, no rate limiting) | A05, A09 |
+| `GET /api/products/search?q=` | Search (SQLi, reflected XSS) | A05 |
+| `GET /api/users/profile/:id` | Profile (IDOR, password hash exposure) | A01, A04 |
+| `PUT /api/users/profile` | Update profile (mass assignment, prototype pollution) | A06, A03 |
+| `POST /api/users/wallet/topup` | Wallet (no auth on user_id, integer overflow) | A01, A10 |
+| `POST /api/orders` | Create order (negative qty, no balance check) | A10, A06 |
+| `POST /api/reviews` | Post review (stored XSS, forged user) | A05, A01 |
+| `GET /api/files/download?file=` | Download (path traversal) | A02 |
+| `POST /api/files/import-xml` | Import XML (XXE) | A02 |
+| `POST /api/coupons/apply` | Apply coupon (race condition, NoSQL injection) | A06, A05 |
+| `GET /api-docs` | API documentation (exposed secrets) | A04 |
+| `GET /api/dependencies` | Dependency info (supply chain) | A03 |
+| `POST /api/validate` | Validation (type confusion) | A10 |
+| `GET /api/scoreboard` | Global leaderboard | - |
+| `GET /api/scoreboard/user/:id` | Individual progress | - |
+| `POST /api/challenges/verify` | Submit a flag | - |
 
 ## Tech Stack
 
@@ -114,10 +115,10 @@ vegetarian-juice-shop/
 │   ├── middleware/
 │   │   └── auth.js         # JWT auth (intentionally weak)
 │   └── routes/
-│       ├── auth.js          # Authentication (SQLi, weak reset)
+│       ├── auth.js          # Authentication (SQLi, no rate limiting)
 │       ├── products.js      # Products (SQLi search)
-│       ├── users.js         # Users (IDOR, mass assignment)
-│       ├── orders.js        # Orders (SQLi)
+│       ├── users.js         # Users (IDOR, mass assignment, prototype pollution)
+│       ├── orders.js        # Orders (SQLi, negative qty)
 │       ├── reviews.js       # Reviews (stored XSS, forged user)
 │       ├── feedback.js      # Feedback (XSS)
 │       ├── files.js         # File ops (upload, path traversal, XXE)

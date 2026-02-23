@@ -56,16 +56,18 @@ function renderHome() {
     </div>
 
     <div class="card mt-2">
-      <div class="card-header">OWASP Top 10 Vulnerability Categories</div>
+      <div class="card-header">OWASP Top 10:2025 Vulnerability Categories</div>
       <div class="grid-2 mt-1">
-        <div><span class="category-tag cat-injection">A03</span> Injection (SQL, XSS, XXE)</div>
-        <div><span class="category-tag cat-access">A01</span> Broken Access Control</div>
-        <div><span class="category-tag cat-auth">A07</span> Auth Failures</div>
-        <div><span class="category-tag cat-misc">A05</span> Security Misconfiguration</div>
-        <div><span class="category-tag cat-crypto">A02</span> Cryptographic Failures</div>
-        <div><span class="category-tag cat-other">A04</span> Insecure Design</div>
-        <div><span class="category-tag cat-other">A10</span> SSRF</div>
-        <div><span class="category-tag cat-other">A08</span> Integrity Failures</div>
+        <div><span class="category-tag cat-access">A01</span> Broken Access Control (incl. SSRF, CSRF)</div>
+        <div><span class="category-tag cat-misc">A02</span> Security Misconfiguration</div>
+        <div><span class="category-tag cat-supply">A03</span> Software Supply Chain Failures <span style="color:var(--accent); font-size:0.7rem;">NEW</span></div>
+        <div><span class="category-tag cat-crypto">A04</span> Cryptographic Failures</div>
+        <div><span class="category-tag cat-injection">A05</span> Injection (SQL, XSS, NoSQL)</div>
+        <div><span class="category-tag cat-other">A06</span> Insecure Design</div>
+        <div><span class="category-tag cat-auth">A07</span> Authentication Failures</div>
+        <div><span class="category-tag cat-other">A08</span> Software &amp; Data Integrity Failures</div>
+        <div><span class="category-tag cat-other">A09</span> Security Logging &amp; Alerting Failures</div>
+        <div><span class="category-tag cat-exceptional">A10</span> Mishandling of Exceptional Conditions <span style="color:var(--accent); font-size:0.7rem;">NEW</span></div>
       </div>
     </div>
   `;
