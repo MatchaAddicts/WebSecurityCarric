@@ -40,3 +40,4 @@ volumes:
 networks:
   juice-net:
     driver: bridge
+    internal: true
