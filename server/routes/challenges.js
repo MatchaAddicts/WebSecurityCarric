@@ -136,6 +136,23 @@ router.post('/verify', verifyToken, (req, res) => {
   }
 });
 
+// POST /api/challenges/restart
+// Reset all challenge progress (no auth required)
+router.post('/restart', (req, res) => {
+  const db = getDb();
+
+  try {
+    const deleted = db.prepare('DELETE FROM user_challenges').run();
+
+    res.json({
+      message: 'All challenge progress has been reset',
+      challenges_cleared: deleted.changes
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/challenges/my-progress
 router.get('/my-progress', verifyToken, (req, res) => {
   const db = getDb();

@@ -121,6 +121,19 @@ async function submitFlag(flag) {
   }
 }
 
+// Restart challenges
+async function restartChallenges() {
+  if (!confirm('Reset ALL challenge progress for every user? This cannot be undone.')) return;
+
+  try {
+    const result = await API.restartChallenges();
+    showNotification(result.message || 'Challenges restarted');
+    renderChallenges();
+  } catch (e) {
+    showNotification(e.error || 'Failed to restart challenges', 'error');
+  }
+}
+
 // Cart management
 function addToCart(product) {
   cart.push(product);

@@ -202,6 +202,12 @@ const API = {
     return this.request('/api/challenges/my-progress');
   },
 
+  async restartChallenges() {
+    return this.request('/api/challenges/restart', {
+      method: 'POST'
+    });
+  },
+
   // Admin
   async getAdminDashboard() {
     return this.request('/api/admin/dashboard');
