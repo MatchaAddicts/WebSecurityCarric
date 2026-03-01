@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
     networks:
       pentest-lab:
-        ipv4_address: 10.10.10.125
+        ipv4_address: 10.10.20.125
 
   # Uncomment to run Kali as a container on the same network:
   #
@@ -26,12 +26,16 @@ services:
   #   tty: true
   #   networks:
   #     pentest-lab:
-  #       ipv4_address: 10.10.10.50
-  #   # Target is reachable at: http://10.10.10.125:2212
+  #       ipv4_address: 10.10.20.50
+  #   # Target is reachable at: http://10.10.20.125:2212
 
 volumes:
   juice-db:
 
 networks:
   pentest-lab:
-    external: true
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.20.0/24
+          gateway: 10.10.20.1
