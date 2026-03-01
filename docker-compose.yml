@@ -1,42 +1,41 @@
-version: '3.8'
-
 services:
   vegetarian-juice-shop:
     build: .
     container_name: vegetarian-juice-shop
+    hostname: vegetarian-juice-shop
     ports:
-      - "3000:3000"
+      - "2212:2212"
     environment:
       - NODE_ENV=development
-      - PORT=3000
+      - PORT=2212
     volumes:
       - ./uploads:/app/uploads
       - juice-db:/app
     restart: unless-stopped
     networks:
-      - juice-net
+      pentest-lab:
+        ipv4_address: 10.10.10.125
 
-  # Optional: Second instance for remediated version comparison
-  vegetarian-juice-shop-clean:
-    build: .
-    container_name: vegetarian-juice-shop-clean
-    ports:
-      - "3001:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-    volumes:
-      - juice-db-clean:/app
-    restart: unless-stopped
-    networks:
-      - juice-net
-    profiles:
-      - clean
+  # Uncomment to run Kali as a container on the same network:
+  #
+  # kali:
+  #   image: kalilinux/kali-rolling
+  #   container_name: kali
+  #   hostname: kali
+  #   stdin_open: true
+  #   tty: true
+  #   networks:
+  #     pentest-lab:
+  #       ipv4_address: 10.10.10.50
+  #   # Target is reachable at: http://10.10.10.125:2212
 
 volumes:
   juice-db:
-  juice-db-clean:
 
 networks:
-  juice-net:
+  pentest-lab:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.10.0/24
+          gateway: 10.10.10.1
