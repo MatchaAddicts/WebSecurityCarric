@@ -906,9 +906,9 @@ async function renderChallenges() {
         </div>
       </div>
 
-      <div class="flex-between mb-2">
+      <div class="flex-between mb-2" style="flex-wrap:wrap; gap:0.5rem;">
         <span>Solved: <strong>${data.solved}</strong> / ${data.total}</span>
-        <div style="display:flex; gap:0.5rem; align-items:center;">
+        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
           <button class="btn btn-sm btn-primary" onclick="filterChallenges('all')">All</button>
           <button class="btn btn-sm btn-secondary" onclick="filterChallenges('solved')">Solved</button>
           <button class="btn btn-sm btn-secondary" onclick="filterChallenges('unsolved')">Unsolved</button>
