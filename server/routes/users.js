@@ -3,6 +3,7 @@ const router = express.Router();
 const md5 = require('md5');
 const { getDb } = require('../db/schema');
 const { verifyToken, optionalAuth } = require('../middleware/auth');
+const { solveChallenge } = require('../utils/challengeSolver');
 
 // GET /api/users/profile/:id
 // VULNERABILITY: IDOR - no authorization check, any user can view any profile
@@ -20,15 +21,15 @@ router.get('/profile/:id', optionalAuth, (req, res) => {
 
     // Detect IDOR: user accessing someone else's profile
     if (req.user && req.user.id !== parseInt(req.params.id)) {
-      response.flag = 'VJS{1d0r_pr0f1le_4cc3ss}';
+      solveChallenge(req, 'idor_profile');
     }
 
     // VULNERABILITY: Password hash exposed
     if (user.password) {
+      solveChallenge(req, 'md5_passwords');
       response.password_hash_info = {
         algorithm: 'MD5',
-        hash: user.password,
-        flag: 'VJS{md5_n0_s4lt_cr4ck}'
+        hash: user.password
       };
     }
 
@@ -45,13 +46,11 @@ router.put('/profile', verifyToken, (req, res) => {
   const userId = req.user.id;
 
   try {
-    // VULNERABILITY: Directly spread all body fields into update
     const fields = req.body;
     const setClauses = [];
     const values = [];
 
     // VULNERABILITY: A03:2025 Supply Chain - Prototype Pollution
-    // Check for prototype pollution attempts before processing
     const pollutionDetected = fields['__proto__'] !== undefined ||
       fields['constructor'] !== undefined ||
       fields['prototype'] !== undefined;
@@ -77,14 +76,12 @@ router.put('/profile', verifyToken, (req, res) => {
 
     const response = { user: updated, message: 'Profile updated' };
 
-    // Check if role was changed to admin (A06:2025 - Insecure Design)
     if (fields.role === 'admin') {
-      response.flag = 'VJS{m4ss_4ss1gn_r0l3}';
+      solveChallenge(req, 'mass_assign');
     }
 
-    // Detect prototype pollution attempt (A03:2025 - Supply Chain)
     if (pollutionDetected) {
-      response.flag_supply_chain = 'VJS{pr0t0typ3_p0llut10n}';
+      solveChallenge(req, 'prototype_pollution');
     }
 
     res.json(response);
@@ -99,10 +96,8 @@ router.post('/wallet/topup', verifyToken, (req, res) => {
   const { user_id, amount } = req.body;
   const db = getDb();
 
-  // VULNERABILITY: Uses user_id from body, not from token
   const targetUserId = user_id || req.user.id;
 
-  // VULNERABILITY: A10:2025 - No validation on extremely large amounts (integer overflow)
   if (!amount || amount <= 0) {
     return res.status(400).json({ error: 'Invalid amount' });
   }
@@ -113,21 +108,18 @@ router.post('/wallet/topup', verifyToken, (req, res) => {
 
     const response = { user, message: `Wallet topped up by $${amount}` };
 
-    // VULNERABILITY: Horizontal privilege escalation detected (A01:2025)
     if (targetUserId !== req.user.id) {
-      response.flag = 'VJS{h0r1z0nt4l_pr1v_3sc}';
+      solveChallenge(req, 'horizontal_priv');
     }
 
-    // VULNERABILITY: A01:2025 - No CSRF protection on state-changing endpoint
     const origin = req.headers.origin || '';
     const host = req.headers.host || '';
     if (!origin || !origin.includes(host)) {
-      response.flag_csrf = 'VJS{csrf_w4ll3t_dr41n}';
+      solveChallenge(req, 'csrf_wallet');
     }
 
-    // VULNERABILITY: A10:2025 - Integer overflow / exceptional value
     if (amount > 1000000 || amount === Number.MAX_SAFE_INTEGER || !Number.isFinite(amount)) {
-      response.flag_overflow = 'VJS{1nt3g3r_0v3rfl0w_w4ll3t}';
+      solveChallenge(req, 'overflow_wallet');
     }
 
     res.json(response);

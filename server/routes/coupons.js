@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/schema');
 const { verifyToken } = require('../middleware/auth');
+const { solveChallenge } = require('../utils/challengeSolver');
 
 // POST /api/coupons/apply
 // VULNERABILITY: Race condition + NoSQL-style injection
@@ -16,11 +17,10 @@ router.post('/apply', verifyToken, (req, res) => {
   try {
     // VULNERABILITY: NoSQL-style injection check
     if (typeof code === 'object' && code !== null) {
-      // Simulated NoSQL operator injection
       if (code.$ne || code.$gt || code.$regex) {
+        solveChallenge(req, 'nosql_coupon');
         const allCoupons = db.prepare('SELECT * FROM coupons WHERE is_active = 1').all();
         return res.json({
-          flag: 'VJS{n0sql_0p3r4t0r_1nj}',
           coupons: allCoupons,
           message: 'NoSQL injection detected - all active coupons retrieved'
         });
@@ -33,11 +33,9 @@ router.post('/apply', verifyToken, (req, res) => {
       return res.status(404).json({ error: 'Invalid or expired coupon' });
     }
 
-    // VULNERABILITY: Race condition - no locking, coupon can be applied multiple times
-    // Simulate a slow operation to make race condition exploitable
+    // VULNERABILITY: Race condition - no locking
     const delay = new Promise(resolve => setTimeout(resolve, 100));
 
-    // Apply discount to order if order_id provided
     if (order_id) {
       const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(order_id);
       if (order) {
@@ -47,11 +45,14 @@ router.post('/apply', verifyToken, (req, res) => {
       }
     }
 
+    if (code === 'ADMIN100') {
+      solveChallenge(req, 'race_coupon');
+    }
+
     res.json({
       coupon: coupon.code,
       discount: coupon.discount,
-      message: `Coupon applied! ${coupon.discount}% discount`,
-      flag: code === 'ADMIN100' ? 'VJS{r4c3_c0nd1t10n_c0up0n}' : undefined
+      message: `Coupon applied! ${coupon.discount}% discount`
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -62,7 +63,6 @@ router.post('/apply', verifyToken, (req, res) => {
 router.get('/', (req, res) => {
   const db = getDb();
   try {
-    // VULNERABILITY: Lists all active coupons (information disclosure)
     const coupons = db.prepare('SELECT code, discount FROM coupons WHERE is_active = 1').all();
     res.json(coupons);
   } catch (err) {

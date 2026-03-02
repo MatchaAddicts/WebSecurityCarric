@@ -6,7 +6,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 
 const { getDb } = require('./db/schema');
-const { JWT_SECRET } = require('./middleware/auth');
+const { JWT_SECRET, optionalAuth } = require('./middleware/auth');
+const { solveChallenge, _doSolve } = require('./utils/challengeSolver');
 
 // Initialize database and seed if empty
 const db = getDb();
@@ -43,27 +44,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// --- Auto-solve middleware: automatically marks challenges solved when flags appear in responses ---
+// --- Challenge auto-solve middleware ---
+// Resolves pending solves (for unauthenticated routes like login)
+// and attaches challenge-solved notifications to responses.
 
-// Deep-scan any object for VJS{...} flag patterns
-function extractFlags(obj) {
-  const flags = [];
-  const scan = (val) => {
-    if (!val) return;
-    if (typeof val === 'string') {
-      const matches = val.match(/VJS\{[^}]+\}/g);
-      if (matches) flags.push(...matches);
-    } else if (Array.isArray(val)) {
-      val.forEach(scan);
-    } else if (typeof val === 'object') {
-      Object.values(val).forEach(scan);
-    }
-  };
-  scan(obj);
-  return [...new Set(flags)];
-}
-
-// Resolve user ID from JWT header, req.user, or response body (login case)
 function resolveUserId(req, body) {
   if (req.user && req.user.id) return req.user.id;
 
@@ -83,44 +67,27 @@ function resolveUserId(req, body) {
     } catch (e) {}
   }
 
-  // Login case: user ID is in the response body
   if (body && body.user && body.user.id) return body.user.id;
-
   return null;
 }
 
-// Intercept res.json() to auto-solve challenges when flags are returned
 app.use((req, res, next) => {
   const originalJson = res.json.bind(res);
   res.json = function(body) {
     try {
-      // Collect flags from response body + any set by middleware (e.g. jwt_none detection)
-      const flags = extractFlags(body);
-      if (req._detectedFlags) flags.push(...req._detectedFlags);
-      const uniqueFlags = [...new Set(flags)];
-
-      if (uniqueFlags.length > 0) {
+      // Complete pending solves (e.g. login route where user wasn't known at detection time)
+      if (req._pendingSolves && req._pendingSolves.length > 0) {
         const userId = resolveUserId(req, body);
         if (userId) {
-          const db = getDb();
-          const solved = [];
-          for (const flag of uniqueFlags) {
-            try {
-              const challenge = db.prepare('SELECT id, name, difficulty FROM challenges WHERE flag = ?').get(flag);
-              if (challenge) {
-                const existing = db.prepare('SELECT id FROM user_challenges WHERE user_id = ? AND challenge_id = ?').get(userId, challenge.id);
-                if (!existing) {
-                  db.prepare('INSERT INTO user_challenges (user_id, challenge_id, flag_submitted) VALUES (?, ?, ?)').run(userId, challenge.id, flag);
-                  solved.push({ name: challenge.name, points: challenge.difficulty * 100 });
-                }
-              }
-            } catch (e) {}
-          }
-          // Attach auto-solved info so the client can show notifications
-          if (solved.length > 0 && typeof body === 'object' && body !== null) {
-            body._auto_solved = solved;
+          for (const key of req._pendingSolves) {
+            _doSolve(userId, key, req);
           }
         }
+      }
+
+      // Attach solved challenge notifications to response
+      if (req._challengesSolved && req._challengesSolved.length > 0 && typeof body === 'object' && body !== null) {
+        body._challenge_solved = req._challengesSolved;
       }
     } catch (e) {}
     return originalJson(body);
@@ -142,10 +109,10 @@ app.use('/api/files', require('./routes/files'));
 app.use('/api/coupons', require('./routes/coupons'));
 
 // VULNERABILITY: A03:2025 Supply Chain - package-lock.json accessible
-app.get('/package-lock.json', (req, res) => {
+app.get('/package-lock.json', optionalAuth, (req, res) => {
+  solveChallenge(req, 'exposed_lockfile');
   const lockfilePath = path.join(__dirname, '..', 'package-lock.json');
   res.json({
-    flag: 'VJS{l0ckf1l3_3xp0s3d}',
     message: 'You found the exposed lockfile! This reveals exact dependency versions.',
     hint: 'Run npm audit against these versions to find known CVEs.',
     lockfile_path: lockfilePath
@@ -153,10 +120,10 @@ app.get('/package-lock.json', (req, res) => {
 });
 
 // VULNERABILITY: A03:2025 Supply Chain - npm audit info
-app.get('/api/dependencies', (req, res) => {
+app.get('/api/dependencies', optionalAuth, (req, res) => {
+  solveChallenge(req, 'outdated_deps');
   const pkg = require('../package.json');
   res.json({
-    flag: 'VJS{vuln3r4bl3_d3ps_f0und}',
     dependencies: pkg.dependencies,
     note: 'Several of these packages have known CVEs. The application uses md5 for password hashing, an outdated multer, and xml2js with XXE risks.',
     vulnerable_packages: [
@@ -169,14 +136,12 @@ app.get('/api/dependencies', (req, res) => {
 });
 
 // VULNERABILITY: A10:2025 - Type confusion endpoint
-app.post('/api/validate', (req, res) => {
+app.post('/api/validate', optionalAuth, (req, res) => {
   const { value, expected_type } = req.body;
 
-  // VULNERABILITY: No type checking - processes whatever is sent
   try {
     let result;
     if (expected_type === 'number') {
-      // Doesn't actually verify it's a number
       result = value + 1;
     } else if (expected_type === 'string') {
       result = value.toUpperCase();
@@ -186,17 +151,16 @@ app.post('/api/validate', (req, res) => {
 
     const response = { result, input_type: typeof value, expected_type };
 
-    // Detect type confusion
     if (typeof value !== expected_type) {
-      response.flag = 'VJS{typ3_c0nfus10n_3rr0r}';
+      solveChallenge(req, 'type_confusion');
       response.note = `Expected ${expected_type} but received ${typeof value}`;
     }
 
     res.json(response);
   } catch (err) {
+    solveChallenge(req, 'type_confusion');
     res.status(500).json({
       error: err.message,
-      flag: 'VJS{typ3_c0nfus10n_3rr0r}',
       note: `Type confusion caused error: expected ${expected_type} but got ${typeof value}`,
       stack: err.stack
     });
@@ -204,16 +168,15 @@ app.post('/api/validate', (req, res) => {
 });
 
 // VULNERABILITY: A01:2025 - SSRF via URL preview feature
-app.post('/api/preview-url', (req, res) => {
+app.post('/api/preview-url', optionalAuth, (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'URL is required' });
 
   const result = { url, preview: `Preview of: ${url}` };
 
-  // VULNERABILITY: No URL validation - allows internal resource access
   if (/localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254|file:|internal|metadata/i.test(url)) {
-    result.flag = 'VJS{ssrf_1nt3rn4l_4cc3ss}';
-    result.message = 'SSRF detected! Internal resource access attempted.';
+    solveChallenge(req, 'ssrf_basic');
+    result.message = 'Internal resource access attempted.';
     result.internal_data = { db_host: 'localhost:5432', redis: 'redis://internal:6379', secret_key: JWT_SECRET };
   }
 
@@ -221,12 +184,9 @@ app.post('/api/preview-url', (req, res) => {
 });
 
 // VULNERABILITY: Unprotected API documentation
-app.get('/api-docs', (req, res) => {
-  const { getDb } = require('./db/schema');
-  const db = getDb();
-  // Auto-solve the challenge when someone accesses this
+app.get('/api-docs', optionalAuth, (req, res) => {
+  solveChallenge(req, 'exposed_api');
   res.json({
-    flag: 'VJS{3xp0s3d_4p1_d0cs}',
     name: 'Vegetarian Juice Shop API',
     version: '1.0.0',
     endpoints: {
@@ -274,7 +234,7 @@ app.get('/api-docs', (req, res) => {
       },
       challenges: {
         'GET /api/challenges': 'List all challenges',
-        'POST /api/challenges/verify': 'Submit a flag',
+        'POST /api/challenges/solve': 'Report a solved challenge (client-side detection)',
       }
     },
     database: 'SQLite3 (better-sqlite3)',
@@ -296,9 +256,9 @@ Disallow: /ftp
 });
 
 // VULNERABILITY: Hidden developer page
-app.get('/secret-dev-page', (req, res) => {
+app.get('/secret-dev-page', optionalAuth, (req, res) => {
+  solveChallenge(req, 'hidden_page');
   res.json({
-    flag: 'VJS{r0b0ts_txt_s3cr3t}',
     message: 'Congratulations! You found the secret developer page!',
     dev_notes: [
       'TODO: Remove default admin account (admin@vegetarian-juice.shop / admin123)',
@@ -315,10 +275,10 @@ app.get('/secret-dev-page', (req, res) => {
 // VULNERABILITY: Verbose error handling that leaks information
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  solveChallenge(req, 'error_disclosure');
   res.status(500).json({
     error: err.message,
     stack: err.stack,
-    flag: 'VJS{v3rb0s3_3rr0r_l34k}',
     db_path: require('./db/schema').DB_PATH,
     node_version: process.version,
     platform: process.platform,

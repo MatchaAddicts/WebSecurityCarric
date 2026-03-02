@@ -72,52 +72,20 @@ function showNotification(message, type = 'success') {
   bar.className = `notification-bar ${type}`;
   text.textContent = message;
 
-  if (type !== 'flag') {
-    setTimeout(() => { bar.style.display = 'none'; }, 5000);
-  }
+  setTimeout(() => { bar.style.display = 'none'; }, 6000);
 }
 
 function closeNotification() {
   document.getElementById('notification-bar').style.display = 'none';
 }
 
-// Auto-submit flags when found
-async function autoSubmitFlag(flag) {
+// Report client-side detected challenge to server
+async function reportClientChallenge(key) {
   if (!API.getToken()) return;
   try {
-    const result = await API.verifyFlag(flag);
-    if (result && !result.already_solved) {
-      showNotification(`Challenge solved: ${result.challenge.name} (+${result.challenge.points} pts)`, 'flag');
-    }
+    await API.reportChallengeSolved(key);
   } catch (e) {
     // Silently fail
-  }
-}
-
-// Manual flag submission
-async function submitFlag(flag) {
-  if (!flag) {
-    flag = document.getElementById('flag-input')?.value;
-  }
-  if (!flag) return;
-
-  if (!API.getToken()) {
-    showNotification('Please login to submit flags', 'warning');
-    return;
-  }
-
-  try {
-    const result = await API.verifyFlag(flag);
-    if (result.already_solved) {
-      showNotification(`Already solved: ${result.challenge.name}`, 'warning');
-    } else {
-      showNotification(`Challenge solved: "${result.challenge.name}" (+${result.challenge.points} pts) | Total: ${result.stats.total_score} pts (${result.stats.progress_percent}%)`, 'flag');
-    }
-    // Refresh current page
-    const flagInput = document.getElementById('flag-input');
-    if (flagInput) flagInput.value = '';
-  } catch (e) {
-    showNotification(e.error || 'Invalid flag', 'error');
   }
 }
 

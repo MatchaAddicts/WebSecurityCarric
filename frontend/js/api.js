@@ -24,36 +24,12 @@ const API = {
     localStorage.removeItem('vjs_user');
   },
 
-  // Deep-scan any response object for VJS{...} flag patterns
-  _scanForFlags(obj) {
-    const flags = [];
-    const scan = (val) => {
-      if (!val) return;
-      if (typeof val === 'string') {
-        const matches = val.match(/VJS\{[^}]+\}/g);
-        if (matches) flags.push(...matches);
-      } else if (Array.isArray(val)) {
-        val.forEach(scan);
-      } else if (typeof val === 'object') {
-        Object.values(val).forEach(scan);
+  // Show challenge-solved notifications from server response
+  _handleChallengeSolved(data) {
+    if (data && data._challenge_solved && data._challenge_solved.length > 0) {
+      for (const ch of data._challenge_solved) {
+        showNotification(`Challenge Solved: ${ch.name} (+${ch.points}pts)`, 'success');
       }
-    };
-    scan(obj);
-    return [...new Set(flags)];
-  },
-
-  // Handle auto-solved challenges from server + client-side flag submission
-  _handleAutoDetect(data) {
-    // Show notification for server-side auto-solved challenges
-    if (data._auto_solved && data._auto_solved.length > 0) {
-      const names = data._auto_solved.map(s => `${s.name} (+${s.points}pts)`).join(', ');
-      showNotification(`Challenge auto-solved: ${names}`, 'flag');
-    }
-
-    // Client-side fallback: scan for any VJS flags and submit them
-    const flags = this._scanForFlags(data);
-    for (const flag of flags) {
-      autoSubmitFlag(flag);
     }
   },
 
@@ -77,8 +53,8 @@ const API = {
 
       const data = await response.json();
 
-      // Auto-detect and auto-solve all flags in every response
-      this._handleAutoDetect(data);
+      // Show challenge-solved notifications
+      this._handleChallengeSolved(data);
 
       if (!response.ok) {
         throw { status: response.status, ...data };
@@ -86,6 +62,9 @@ const API = {
 
       return data;
     } catch (err) {
+      if (err._challenge_solved) {
+        this._handleChallengeSolved(err);
+      }
       if (err.status) throw err;
       throw { error: 'Network error', details: err.message };
     }
@@ -217,10 +196,10 @@ const API = {
     return this.request('/api/challenges');
   },
 
-  async verifyFlag(flag) {
-    return this.request('/api/challenges/verify', {
+  async reportChallengeSolved(key) {
+    return this.request('/api/challenges/solve', {
       method: 'POST',
-      body: JSON.stringify({ flag })
+      body: JSON.stringify({ key })
     });
   },
 
@@ -243,7 +222,7 @@ const API = {
     return this.request('/api/admin/users');
   },
 
-  // Files (use request() so auto-detection works)
+  // Files
   async uploadFile(fileData, filename) {
     const token = this.getToken();
     const response = await fetch('/api/files/upload', {
@@ -256,7 +235,7 @@ const API = {
       body: fileData
     });
     const data = await response.json();
-    this._handleAutoDetect(data);
+    this._handleChallengeSolved(data);
     return data;
   },
 
@@ -275,7 +254,7 @@ const API = {
       body: xmlData
     });
     const data = await response.json();
-    this._handleAutoDetect(data);
+    this._handleChallengeSolved(data);
     return data;
   }
 };

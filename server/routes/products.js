@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/schema');
+const { optionalAuth } = require('../middleware/auth');
+const { solveChallenge } = require('../utils/challengeSolver');
 
 // GET /api/products
 router.get('/', (req, res) => {
@@ -15,7 +17,7 @@ router.get('/', (req, res) => {
 
 // GET /api/products/search?q=
 // VULNERABILITY: SQL Injection in search
-router.get('/search', (req, res) => {
+router.get('/search', optionalAuth, (req, res) => {
   const { q } = req.query;
   const db = getDb();
 
@@ -28,11 +30,10 @@ router.get('/search', (req, res) => {
     const query = `SELECT * FROM products WHERE name LIKE '%${q}%' OR description LIKE '%${q}%'`;
     const products = db.prepare(query).all();
 
-    // Check if SQLi was used to extract data
     const response = { results: products };
 
     if (q.toLowerCase().includes('union') && q.toLowerCase().includes('select')) {
-      response.flag = 'VJS{un10n_s3lect_m4ster}';
+      solveChallenge(req, 'sqli_search');
     }
 
     // VULNERABILITY: Reflected XSS - query echoed back

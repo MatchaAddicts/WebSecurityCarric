@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/schema');
 const { verifyToken, optionalAuth } = require('../middleware/auth');
+const { solveChallenge } = require('../utils/challengeSolver');
 
 // GET /api/reviews/product/:id
 router.get('/product/:id', (req, res) => {
@@ -48,14 +49,12 @@ router.post('/', verifyToken, (req, res) => {
       message: 'Review posted'
     };
 
-    // Detect stored XSS
     if (comment.includes('<script') || comment.includes('onerror') || comment.includes('onload') || comment.includes('javascript:')) {
-      response.flag = 'VJS{st0r3d_xss_r3v13w}';
+      solveChallenge(req, 'xss_stored');
     }
 
-    // Detect forged review
     if (user_id && user_id !== req.user.id) {
-      response.flag_bonus = 'VJS{f0rg3d_r3v13w_1d0r}';
+      solveChallenge(req, 'forged_review');
     }
 
     res.status(201).json(response);
