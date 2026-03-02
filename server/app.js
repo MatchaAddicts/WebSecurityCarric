@@ -3,8 +3,10 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 
 const { getDb } = require('./db/schema');
+const { JWT_SECRET } = require('./middleware/auth');
 
 // Initialize database and seed if empty
 const db = getDb();
@@ -38,6 +40,91 @@ app.use(express.static(path.join(__dirname, '..')));
 app.use((req, res, next) => {
   res.setHeader('X-Powered-By', 'Express 4.18.2');
   res.setHeader('Server', 'Vegetarian-Juice-Shop/1.0 (Node.js)');
+  next();
+});
+
+// --- Auto-solve middleware: automatically marks challenges solved when flags appear in responses ---
+
+// Deep-scan any object for VJS{...} flag patterns
+function extractFlags(obj) {
+  const flags = [];
+  const scan = (val) => {
+    if (!val) return;
+    if (typeof val === 'string') {
+      const matches = val.match(/VJS\{[^}]+\}/g);
+      if (matches) flags.push(...matches);
+    } else if (Array.isArray(val)) {
+      val.forEach(scan);
+    } else if (typeof val === 'object') {
+      Object.values(val).forEach(scan);
+    }
+  };
+  scan(obj);
+  return [...new Set(flags)];
+}
+
+// Resolve user ID from JWT header, req.user, or response body (login case)
+function resolveUserId(req, body) {
+  if (req.user && req.user.id) return req.user.id;
+
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (decoded.id) return decoded.id;
+    } catch (e) {}
+    try {
+      const parts = token.split('.');
+      const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
+      if (header.alg === 'none' || header.alg === 'None') {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        if (payload.id) return payload.id;
+      }
+    } catch (e) {}
+  }
+
+  // Login case: user ID is in the response body
+  if (body && body.user && body.user.id) return body.user.id;
+
+  return null;
+}
+
+// Intercept res.json() to auto-solve challenges when flags are returned
+app.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = function(body) {
+    try {
+      // Collect flags from response body + any set by middleware (e.g. jwt_none detection)
+      const flags = extractFlags(body);
+      if (req._detectedFlags) flags.push(...req._detectedFlags);
+      const uniqueFlags = [...new Set(flags)];
+
+      if (uniqueFlags.length > 0) {
+        const userId = resolveUserId(req, body);
+        if (userId) {
+          const db = getDb();
+          const solved = [];
+          for (const flag of uniqueFlags) {
+            try {
+              const challenge = db.prepare('SELECT id, name, difficulty FROM challenges WHERE flag = ?').get(flag);
+              if (challenge) {
+                const existing = db.prepare('SELECT id FROM user_challenges WHERE user_id = ? AND challenge_id = ?').get(userId, challenge.id);
+                if (!existing) {
+                  db.prepare('INSERT INTO user_challenges (user_id, challenge_id, flag_submitted) VALUES (?, ?, ?)').run(userId, challenge.id, flag);
+                  solved.push({ name: challenge.name, points: challenge.difficulty * 100 });
+                }
+              }
+            } catch (e) {}
+          }
+          // Attach auto-solved info so the client can show notifications
+          if (solved.length > 0 && typeof body === 'object' && body !== null) {
+            body._auto_solved = solved;
+          }
+        }
+      }
+    } catch (e) {}
+    return originalJson(body);
+  };
   next();
 });
 
@@ -116,6 +203,23 @@ app.post('/api/validate', (req, res) => {
   }
 });
 
+// VULNERABILITY: A01:2025 - SSRF via URL preview feature
+app.post('/api/preview-url', (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'URL is required' });
+
+  const result = { url, preview: `Preview of: ${url}` };
+
+  // VULNERABILITY: No URL validation - allows internal resource access
+  if (/localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254|file:|internal|metadata/i.test(url)) {
+    result.flag = 'VJS{ssrf_1nt3rn4l_4cc3ss}';
+    result.message = 'SSRF detected! Internal resource access attempted.';
+    result.internal_data = { db_host: 'localhost:5432', redis: 'redis://internal:6379', secret_key: JWT_SECRET };
+  }
+
+  res.json(result);
+});
+
 // VULNERABILITY: Unprotected API documentation
 app.get('/api-docs', (req, res) => {
   const { getDb } = require('./db/schema');
@@ -152,6 +256,10 @@ app.get('/api-docs', (req, res) => {
       files: {
         'POST /api/files/upload': 'Upload file (unrestricted)',
         'GET /api/files/download?file=': 'Download file (path traversal)',
+        'POST /api/files/import-xml': 'Import XML (XXE)',
+      },
+      ssrf: {
+        'POST /api/preview-url': 'Preview URL content (SSRF)',
       },
       admin: {
         'GET /api/admin/dashboard': 'Admin dashboard (broken access)',

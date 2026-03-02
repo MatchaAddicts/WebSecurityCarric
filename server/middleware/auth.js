@@ -23,11 +23,26 @@ function verifyToken(req, res, next) {
       // Intentionally accept none algorithm
       const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
       req.user = payload;
+      // Auto-detect: JWT none algorithm exploit
+      req._detectedFlags = req._detectedFlags || [];
+      req._detectedFlags.push('VJS{jwt_n0n3_4lg0_f0rg3}');
       return next();
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+
+    // Auto-detect: forged JWT with weak secret (role in token doesn't match DB)
+    try {
+      const { getDb } = require('../db/schema');
+      const db = getDb();
+      const dbUser = db.prepare('SELECT role FROM users WHERE id = ?').get(decoded.id);
+      if (dbUser && dbUser.role !== decoded.role) {
+        req._detectedFlags = req._detectedFlags || [];
+        req._detectedFlags.push('VJS{w34k_jwt_s3cr3t}');
+      }
+    } catch (e) {}
+
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token', details: err.message });
@@ -48,11 +63,24 @@ function optionalAuth(req, res, next) {
     if (header.alg === 'none' || header.alg === 'None') {
       const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
       req.user = payload;
+      req._detectedFlags = req._detectedFlags || [];
+      req._detectedFlags.push('VJS{jwt_n0n3_4lg0_f0rg3}');
       return next();
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+
+    try {
+      const { getDb } = require('../db/schema');
+      const db = getDb();
+      const dbUser = db.prepare('SELECT role FROM users WHERE id = ?').get(decoded.id);
+      if (dbUser && dbUser.role !== decoded.role) {
+        req._detectedFlags = req._detectedFlags || [];
+        req._detectedFlags.push('VJS{w34k_jwt_s3cr3t}');
+      }
+    } catch (e) {}
+
     next();
   } catch (err) {
     req.user = null;

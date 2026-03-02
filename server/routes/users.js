@@ -118,6 +118,13 @@ router.post('/wallet/topup', verifyToken, (req, res) => {
       response.flag = 'VJS{h0r1z0nt4l_pr1v_3sc}';
     }
 
+    // VULNERABILITY: A01:2025 - No CSRF protection on state-changing endpoint
+    const origin = req.headers.origin || '';
+    const host = req.headers.host || '';
+    if (!origin || !origin.includes(host)) {
+      response.flag_csrf = 'VJS{csrf_w4ll3t_dr41n}';
+    }
+
     // VULNERABILITY: A10:2025 - Integer overflow / exceptional value
     if (amount > 1000000 || amount === Number.MAX_SAFE_INTEGER || !Number.isFinite(amount)) {
       response.flag_overflow = 'VJS{1nt3g3r_0v3rfl0w_w4ll3t}';
