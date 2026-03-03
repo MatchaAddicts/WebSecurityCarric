@@ -10,7 +10,7 @@ services:
       - PORT=2212
     volumes:
       - ./uploads:/app/uploads
-      - juice-db:/app
+      - juice-db:/app/data
     restart: unless-stopped
     networks:
       pentest-lab:
