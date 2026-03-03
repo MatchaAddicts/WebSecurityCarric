@@ -34,6 +34,17 @@ router.get('/', optionalAuth, (req, res) => {
       `).all(req.user.id);
       solvedKeys = new Set(solved.map(s => s.key));
     }
+    // Also check session-based solves (anonymous users)
+    if (req.sessionId) {
+      const sessionSolved = db.prepare(`
+        SELECT c.key FROM user_challenges uc
+        JOIN challenges c ON uc.challenge_id = c.id
+        WHERE uc.session_id = ? AND uc.user_id IS NULL
+      `).all(req.sessionId);
+      for (const s of sessionSolved) {
+        solvedKeys.add(s.key);
+      }
+    }
 
     const result = challenges.map(ch => ({
       ...ch,

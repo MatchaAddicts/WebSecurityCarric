@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const { getDb } = require('./db/schema');
 const { JWT_SECRET, optionalAuth } = require('./middleware/auth');
@@ -31,6 +32,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Session middleware: assign a persistent session ID cookie to all visitors
+app.use((req, res, next) => {
+  if (!req.cookies.vjs_session) {
+    const sessionId = crypto.randomUUID();
+    res.cookie('vjs_session', sessionId, { httpOnly: false, maxAge: 7 * 24 * 60 * 60 * 1000, sameSite: 'lax' });
+    req.sessionId = sessionId;
+  } else {
+    req.sessionId = req.cookies.vjs_session;
+  }
+  next();
+});
+
 // Serve static files
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
@@ -51,7 +64,7 @@ app.use((req, res, next) => {
 function resolveUserId(req, body) {
   if (req.user && req.user.id) return req.user.id;
 
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = req.headers.authorization?.replace('Bearer ', '') || (req.cookies && req.cookies.token);
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
@@ -81,6 +94,12 @@ app.use((req, res, next) => {
         if (userId) {
           for (const key of req._pendingSolves) {
             _doSolve(userId, key, req);
+          }
+        } else if (req.sessionId) {
+          // No user found — solve against session
+          const { _doSolveSession } = require('./utils/challengeSolver');
+          for (const key of req._pendingSolves) {
+            _doSolveSession(req.sessionId, key, req);
           }
         }
       }
