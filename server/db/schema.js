@@ -11,6 +11,7 @@ function getDb() {
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
     initSchema();
+    runMigrations();
   }
   return db;
 }
@@ -104,7 +105,8 @@ function initSchema() {
 
     CREATE TABLE IF NOT EXISTS user_challenges (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
+      user_id INTEGER,
+      session_id TEXT,
       challenge_id INTEGER NOT NULL,
       solved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       flag_submitted TEXT,
@@ -129,6 +131,18 @@ function initSchema() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
+}
+
+function runMigrations() {
+  try {
+    // Add session_id column if it doesn't exist (for existing databases)
+    const cols = db.prepare("PRAGMA table_info(user_challenges)").all();
+    if (!cols.find(c => c.name === 'session_id')) {
+      db.exec('ALTER TABLE user_challenges ADD COLUMN session_id TEXT');
+    }
+  } catch (e) {
+    // Ignore migration errors
+  }
 }
 
 module.exports = { getDb, DB_PATH };

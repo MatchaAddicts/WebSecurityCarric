@@ -3,7 +3,7 @@ const router = express.Router();
 const md5 = require('md5');
 const { getDb } = require('../db/schema');
 const { signToken } = require('../middleware/auth');
-const { solveChallenge } = require('../utils/challengeSolver');
+const { solveChallenge, mergeSessionSolves } = require('../utils/challengeSolver');
 
 // VULNERABILITY: A09:2025 - No rate limiting, no logging of failed attempts
 const failedAttempts = {};
@@ -31,6 +31,7 @@ router.post('/login', (req, res) => {
             email: user2.email,
             role: user2.role
           });
+          if (req.sessionId) mergeSessionSolves(req.sessionId, user2.id);
           res.cookie('token', token, { httpOnly: false, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
           return res.json({
             token,
@@ -55,6 +56,7 @@ router.post('/login', (req, res) => {
             email: sqliUser.email,
             role: sqliUser.role
           });
+          if (req.sessionId) mergeSessionSolves(req.sessionId, sqliUser.id);
           res.cookie('token', token, { httpOnly: false, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
           return res.json({
             token,
@@ -99,6 +101,8 @@ router.post('/login', (req, res) => {
       solveChallenge(req, 'default_creds');
     }
 
+    // Merge any anonymous session solves into this user
+    if (req.sessionId) mergeSessionSolves(req.sessionId, user.id);
     // Set JWT as cookie so direct browser navigation carries auth
     res.cookie('token', token, { httpOnly: false, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
     res.json(response);
@@ -135,6 +139,7 @@ router.post('/register', (req, res) => {
       role: 'customer'
     });
 
+    if (req.sessionId) mergeSessionSolves(req.sessionId, result.lastInsertRowid);
     res.cookie('token', token, { httpOnly: false, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
     res.status(201).json({
       token,
