@@ -51,7 +51,7 @@ app.use((req, res, next) => {
 function resolveUserId(req, body) {
   if (req.user && req.user.id) return req.user.id;
 
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = req.headers.authorization?.replace('Bearer ', '') || (req.cookies && req.cookies.token);
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);

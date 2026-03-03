@@ -31,6 +31,7 @@ router.post('/login', (req, res) => {
             email: user2.email,
             role: user2.role
           });
+          res.cookie('token', token, { httpOnly: false, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
           return res.json({
             token,
             user: { id: user2.id, username: user2.username, email: user2.email, role: user2.role }
@@ -54,6 +55,7 @@ router.post('/login', (req, res) => {
             email: sqliUser.email,
             role: sqliUser.role
           });
+          res.cookie('token', token, { httpOnly: false, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
           return res.json({
             token,
             user: { id: sqliUser.id, username: sqliUser.username, email: sqliUser.email, role: sqliUser.role }
@@ -97,6 +99,8 @@ router.post('/login', (req, res) => {
       solveChallenge(req, 'default_creds');
     }
 
+    // Set JWT as cookie so direct browser navigation carries auth
+    res.cookie('token', token, { httpOnly: false, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
     res.json(response);
   } catch (err) {
     // VULNERABILITY: Verbose error message
@@ -131,6 +135,7 @@ router.post('/register', (req, res) => {
       role: 'customer'
     });
 
+    res.cookie('token', token, { httpOnly: false, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
     res.status(201).json({
       token,
       user: { id: result.lastInsertRowid, username, email, role: 'customer' }
