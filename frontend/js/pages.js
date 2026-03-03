@@ -47,15 +47,6 @@ function renderHome() {
     `}
 
     <div class="card mt-2">
-      <div class="card-header">Submit a Flag</div>
-      <p style="margin-bottom:0.5rem; color:var(--text-light);">Found a vulnerability? Enter the flag here:</p>
-      <div class="flag-input-container">
-        <input type="text" id="flag-input" class="form-control" placeholder="VJS{...}" />
-        <button class="btn btn-accent" onclick="submitFlag()">Submit</button>
-      </div>
-    </div>
-
-    <div class="card mt-2">
       <div class="card-header">OWASP Top 10:2025 Vulnerability Categories</div>
       <div class="grid-2 mt-1">
         <div><span class="category-tag cat-access">A01</span> Broken Access Control (incl. SSRF, CSRF)</div>
@@ -143,7 +134,6 @@ async function searchProducts() {
     resultsDiv.innerHTML = `
       <div class="card">
         <p>${data.message}</p>
-        ${data.flag ? `<p style="color: var(--accent); font-weight:bold;">Flag: ${data.flag}</p>` : ''}
         ${data.results && data.results.length > 0 ? `
           <div class="grid mt-1">
             ${data.results.map(p => `
@@ -159,9 +149,9 @@ async function searchProducts() {
       </div>
     `;
 
-    // Check for reflected XSS
+    // Client-side detection: reflected XSS
     if (query.includes('<script') || query.includes('onerror') || query.includes('javascript:')) {
-      autoSubmitFlag('VJS{r3flect3d_xss_p0p}');
+      reportClientChallenge('xss_reflected');
     }
   } catch (err) {
     resultsDiv.innerHTML = `<div class="card" style="border-left: 4px solid var(--danger);">
@@ -671,7 +661,6 @@ async function lookupOrderById(id) {
     resultDiv.innerHTML = `
       <div class="card">
         <div class="card-header">Order #${data.order.id}</div>
-        ${data.flag ? `<p style="color:var(--accent); font-weight:bold;">Flag: ${data.flag}</p>` : ''}
         <p><strong>User:</strong> ${data.order.username} (${data.order.email})</p>
         <p><strong>Total:</strong> $${data.order.total}</p>
         <p><strong>Status:</strong> ${data.order.status}</p>
@@ -896,15 +885,7 @@ async function renderChallenges() {
 
     content.innerHTML = `
       <h2 class="mb-1">Security Challenges</h2>
-      <p style="color:var(--text-light); margin-bottom:1rem;">Find vulnerabilities, capture flags, and climb the scoreboard. Each flag follows the format: <code>VJS{...}</code></p>
-
-      <div class="card mb-2">
-        <div class="card-header">Submit a Flag</div>
-        <div class="flag-input-container">
-          <input type="text" id="flag-input" class="form-control" placeholder="VJS{your_flag_here}" />
-          <button class="btn btn-accent" onclick="submitFlag()">Submit Flag</button>
-        </div>
-      </div>
+      <p style="color:var(--text-light); margin-bottom:1rem;">Find and exploit vulnerabilities to solve challenges. Challenges are automatically detected when you successfully exploit a vulnerability.</p>
 
       <div class="flex-between mb-2" style="flex-wrap:wrap; gap:0.5rem;">
         <span>Solved: <strong>${data.solved}</strong> / ${data.total}</span>

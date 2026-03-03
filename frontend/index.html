@@ -65,9 +65,9 @@
         document.getElementById('dom-xss-target').style.display = 'block';
         document.getElementById('dom-xss-target').innerHTML = hash;
 
-        // Auto-detect and flag DOM XSS
+        // Auto-detect DOM XSS
         if (hash.includes('<script') || hash.includes('onerror') || hash.includes('onload')) {
-          submitFlag('VJS{d0m_xss_fr4gm3nt}');
+          reportClientChallenge('xss_dom');
         }
       }
     });

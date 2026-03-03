@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/schema');
 const { verifyToken, optionalAuth } = require('../middleware/auth');
+const { solveChallenge } = require('../utils/challengeSolver');
 
 // GET /api/challenges
 // List all challenges with solve status for current user
@@ -61,79 +62,24 @@ router.get('/', optionalAuth, (req, res) => {
   }
 });
 
-// POST /api/challenges/verify
-// Submit a flag to solve a challenge
-router.post('/verify', verifyToken, (req, res) => {
-  const { flag } = req.body;
-  const db = getDb();
+// POST /api/challenges/solve
+// Client-side challenge detection (e.g. DOM XSS, Reflected XSS)
+// These are detected in the browser and reported to the server.
+router.post('/solve', verifyToken, (req, res) => {
+  const { key } = req.body;
 
-  if (!flag) {
-    return res.status(400).json({ error: 'Flag is required' });
+  if (!key) {
+    return res.status(400).json({ error: 'Challenge key is required' });
   }
 
-  try {
-    // Find challenge by flag
-    const challenge = db.prepare('SELECT * FROM challenges WHERE flag = ?').get(flag);
-
-    if (!challenge) {
-      return res.status(400).json({
-        error: 'Invalid flag',
-        message: 'The submitted flag does not match any challenge.'
-      });
-    }
-
-    // Check if already solved
-    const existing = db.prepare('SELECT * FROM user_challenges WHERE user_id = ? AND challenge_id = ?').get(
-      req.user.id, challenge.id
-    );
-
-    if (existing) {
-      return res.json({
-        message: 'Challenge already solved!',
-        challenge: {
-          name: challenge.name,
-          category: challenge.category,
-          difficulty: challenge.difficulty,
-          points: challenge.difficulty * 100
-        },
-        already_solved: true
-      });
-    }
-
-    // Record the solve
-    db.prepare('INSERT INTO user_challenges (user_id, challenge_id, flag_submitted) VALUES (?, ?, ?)').run(
-      req.user.id, challenge.id, flag
-    );
-
-    // Get updated stats
-    const solvedCount = db.prepare('SELECT COUNT(*) as count FROM user_challenges WHERE user_id = ?').get(req.user.id);
-    const totalChallenges = db.prepare('SELECT COUNT(*) as count FROM challenges').get();
-    const totalScore = db.prepare(`
-      SELECT COALESCE(SUM(c.difficulty * 100), 0) as score
-      FROM user_challenges uc
-      JOIN challenges c ON uc.challenge_id = c.id
-      WHERE uc.user_id = ?
-    `).get(req.user.id);
-
-    res.json({
-      message: `Congratulations! You solved "${challenge.name}"!`,
-      challenge: {
-        name: challenge.name,
-        category: challenge.category,
-        difficulty: challenge.difficulty,
-        points: challenge.difficulty * 100,
-        owasp_category: challenge.owasp_category
-      },
-      stats: {
-        challenges_solved: solvedCount.count,
-        total_challenges: totalChallenges.count,
-        total_score: totalScore.score,
-        progress_percent: Math.round((solvedCount.count / totalChallenges.count) * 100)
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  // Only allow client-side detectable challenges
+  const clientChallenges = ['xss_dom', 'xss_reflected'];
+  if (!clientChallenges.includes(key)) {
+    return res.status(400).json({ error: 'This challenge cannot be solved via client report' });
   }
+
+  solveChallenge(req, key);
+  res.json({ message: 'Challenge detection reported' });
 });
 
 // POST /api/challenges/restart

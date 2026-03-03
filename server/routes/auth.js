@@ -3,9 +3,9 @@ const router = express.Router();
 const md5 = require('md5');
 const { getDb } = require('../db/schema');
 const { signToken } = require('../middleware/auth');
+const { solveChallenge } = require('../utils/challengeSolver');
 
 // VULNERABILITY: A09:2025 - No rate limiting, no logging of failed attempts
-// Track failed attempts in-memory (intentionally non-persistent and non-blocking)
 const failedAttempts = {};
 
 // POST /api/auth/login
@@ -45,6 +45,9 @@ router.post('/login', (req, res) => {
         const sqliQuery = `SELECT * FROM users WHERE email = '${email}'`;
         const sqliUser = db.prepare(sqliQuery).get();
         if (sqliUser) {
+          if (sqliUser.role === 'admin') {
+            solveChallenge(req, 'sqli_login');
+          }
           const token = signToken({
             id: sqliUser.id,
             username: sqliUser.username,
@@ -53,8 +56,7 @@ router.post('/login', (req, res) => {
           });
           return res.json({
             token,
-            user: { id: sqliUser.id, username: sqliUser.username, email: sqliUser.email, role: sqliUser.role },
-            flag: sqliUser.role === 'admin' ? 'VJS{sql_inject10n_l0gin_byp4ss}' : undefined
+            user: { id: sqliUser.id, username: sqliUser.username, email: sqliUser.email, role: sqliUser.role }
           });
         }
       } catch (e) {
@@ -67,9 +69,8 @@ router.post('/login', (req, res) => {
 
       const errorResponse = { error: 'Invalid email or password' };
 
-      // After 10 failed attempts, reveal the logging failure flag
       if (attempts >= 10) {
-        errorResponse.flag = 'VJS{n0_l0gg1ng_0r_4l3rt}';
+        solveChallenge(req, 'no_logging');
         errorResponse.note = `${attempts} failed attempts for this account and still no lockout!`;
       }
 
@@ -83,18 +84,17 @@ router.post('/login', (req, res) => {
       role: user.role
     });
 
-    // VULNERABILITY: returns flag for admin login
     const response = {
       token,
       user: { id: user.id, username: user.username, email: user.email, role: user.role }
     };
 
     if (user.role === 'admin' && email === 'admin@vegetarian-juice.shop' && password === 'admin123') {
-      response.flag = 'VJS{w34k_4dm1n_p4ssw0rd}';
+      solveChallenge(req, 'weak_password');
     }
 
     if (user.username === 'wurstbot') {
-      response.flag = 'VJS{d3f4ult_cr3ds_b4ckd00r}';
+      solveChallenge(req, 'default_creds');
     }
 
     res.json(response);
@@ -163,10 +163,9 @@ router.post('/reset-password', (req, res) => {
     const hashedPassword = md5(new_password);
     db.prepare('UPDATE users SET password = ? WHERE email = ?').run(hashedPassword, email);
 
-    res.json({
-      message: 'Password reset successful',
-      flag: 'VJS{br0k3n_p4ss_r3s3t}'
-    });
+    solveChallenge(req, 'password_reset');
+
+    res.json({ message: 'Password reset successful' });
   } catch (err) {
     res.status(500).json({ error: 'Password reset failed', details: err.message });
   }

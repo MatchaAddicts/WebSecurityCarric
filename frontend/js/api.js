@@ -24,6 +24,15 @@ const API = {
     localStorage.removeItem('vjs_user');
   },
 
+  // Show challenge-solved notifications from server response
+  _handleChallengeSolved(data) {
+    if (data && data._challenge_solved && data._challenge_solved.length > 0) {
+      for (const ch of data._challenge_solved) {
+        showNotification(`Challenge Solved: ${ch.name} (+${ch.points}pts)`, 'success');
+      }
+    }
+  },
+
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = {
@@ -44,15 +53,8 @@ const API = {
 
       const data = await response.json();
 
-      // Auto-detect flags in responses
-      if (data.flag) {
-        showNotification(`Flag found: ${data.flag}`, 'flag');
-        autoSubmitFlag(data.flag);
-      }
-      if (data.flag_bonus) {
-        showNotification(`Bonus flag found: ${data.flag_bonus}`, 'flag');
-        autoSubmitFlag(data.flag_bonus);
-      }
+      // Show challenge-solved notifications
+      this._handleChallengeSolved(data);
 
       if (!response.ok) {
         throw { status: response.status, ...data };
@@ -60,6 +62,9 @@ const API = {
 
       return data;
     } catch (err) {
+      if (err._challenge_solved) {
+        this._handleChallengeSolved(err);
+      }
       if (err.status) throw err;
       throw { error: 'Network error', details: err.message };
     }
@@ -191,10 +196,10 @@ const API = {
     return this.request('/api/challenges');
   },
 
-  async verifyFlag(flag) {
-    return this.request('/api/challenges/verify', {
+  async reportChallengeSolved(key) {
+    return this.request('/api/challenges/solve', {
       method: 'POST',
-      body: JSON.stringify({ flag })
+      body: JSON.stringify({ key })
     });
   },
 
@@ -229,7 +234,9 @@ const API = {
       },
       body: fileData
     });
-    return response.json();
+    const data = await response.json();
+    this._handleChallengeSolved(data);
+    return data;
   },
 
   async downloadFile(filename) {
@@ -246,6 +253,8 @@ const API = {
       },
       body: xmlData
     });
-    return response.json();
+    const data = await response.json();
+    this._handleChallengeSolved(data);
+    return data;
   }
 };

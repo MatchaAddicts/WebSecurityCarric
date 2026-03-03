@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/schema');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { solveChallenge } = require('../utils/challengeSolver');
 
 // GET /api/admin/dashboard
 // VULNERABILITY: Only checks JWT claims, doesn't verify in DB
@@ -14,8 +15,9 @@ router.get('/dashboard', verifyToken, requireAdmin, (req, res) => {
     const productCount = db.prepare('SELECT COUNT(*) as count FROM products').get();
     const revenue = db.prepare('SELECT SUM(total) as total FROM orders').get();
 
+    solveChallenge(req, 'admin_panel');
+
     res.json({
-      flag: 'VJS{4dm1n_p4n3l_byp4ss}',
       dashboard: {
         total_users: userCount.count,
         total_orders: orderCount.count,
@@ -34,7 +36,6 @@ router.get('/dashboard', verifyToken, requireAdmin, (req, res) => {
 router.get('/users', verifyToken, requireAdmin, (req, res) => {
   const db = getDb();
   try {
-    // VULNERABILITY: Returns password hashes
     const users = db.prepare('SELECT * FROM users').all();
     res.json(users);
   } catch (err) {
