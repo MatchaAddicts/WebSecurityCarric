@@ -137,6 +137,81 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
+/* Challenge Solved Modal */
+.challenge-solved-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+.challenge-solved-card {
+  background: var(--card-bg, #1e1e2e);
+  border: 2px solid var(--success, #27ae60);
+  border-radius: 16px;
+  padding: 2.5rem 3rem;
+  text-align: center;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 0 40px rgba(39, 174, 96, 0.4);
+  animation: popIn 0.4s ease;
+}
+
+.challenge-solved-card .solved-icon {
+  font-size: 3.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.challenge-solved-card .solved-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--success, #27ae60);
+  margin-bottom: 0.3rem;
+}
+
+.challenge-solved-card .solved-name {
+  font-size: 1.15rem;
+  color: var(--text, #e0e0e0);
+  margin-bottom: 0.3rem;
+}
+
+.challenge-solved-card .solved-points {
+  font-size: 1.1rem;
+  color: var(--warning, #f39c12);
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.challenge-solved-card .solved-dismiss {
+  background: var(--success, #27ae60);
+  color: white;
+  border: none;
+  padding: 0.6rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.challenge-solved-card .solved-dismiss:hover {
+  opacity: 0.9;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.7); opacity: 0; }
+  80% { transform: scale(1.03); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* Main Content */
 main {
   flex: 1;

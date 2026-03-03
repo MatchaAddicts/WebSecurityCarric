@@ -1,9 +1,11 @@
 // Vegetarian Juice Shop - Main App Logic
 
 let cart = JSON.parse(localStorage.getItem('vjs_cart') || '[]');
+let _currentPage = 'home';
 
 // Navigation
 function navigate(page, params = {}) {
+  _currentPage = page;
   const content = document.getElementById('app-content');
   content.innerHTML = '<div class="text-center mt-3"><p>Loading...</p></div>';
   content.className = 'fade-in';
@@ -151,6 +153,25 @@ function getCategoryClass(category) {
   return map[category] || 'cat-other';
 }
 
+// Challenge solved modal popup
+function showChallengeSolvedPopup(name, points) {
+  const overlay = document.createElement('div');
+  overlay.className = 'challenge-solved-overlay';
+  overlay.innerHTML = `
+    <div class="challenge-solved-card">
+      <div class="solved-icon">&#127937;</div>
+      <div class="solved-title">Challenge Solved!</div>
+      <div class="solved-name">${name}</div>
+      <div class="solved-points">+${points} pts</div>
+      <button class="solved-dismiss" onclick="this.closest('.challenge-solved-overlay').remove()">Nice!</button>
+    </div>
+  `;
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  document.body.appendChild(overlay);
+}
+
 // Poll for challenge solve notifications (catches solves from direct browser visits, curl, etc.)
 let _notificationPollTimer = null;
 
@@ -162,7 +183,11 @@ function startNotificationPolling() {
       const data = await resp.json();
       if (data.notifications && data.notifications.length > 0) {
         for (const ch of data.notifications) {
-          showNotification(`Challenge Solved: ${ch.name} (+${ch.points}pts)`, 'success');
+          showChallengeSolvedPopup(ch.name, ch.points);
+        }
+        // Auto-refresh challenges page if currently viewing it
+        if (_currentPage === 'challenges') {
+          renderChallenges();
         }
       }
     } catch (e) {
