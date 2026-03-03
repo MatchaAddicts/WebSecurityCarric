@@ -499,9 +499,6 @@ async function uploadFile() {
   try {
     const result = await API.uploadFile(file, file.name);
     showNotification(result.message || 'File uploaded!');
-    if (result.flag) {
-      showNotification(`Flag: ${result.flag}`, 'flag');
-    }
   } catch (err) {
     showNotification(err.error || 'Upload failed', 'error');
   }
@@ -1027,9 +1024,6 @@ async function renderAdmin() {
 
     content.innerHTML = `
       <h2 class="mb-2">Admin Dashboard</h2>
-      ${dashboard.flag ? `<div class="card" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white;">
-        <p><strong>Flag:</strong> ${dashboard.flag}</p>
-      </div>` : ''}
 
       <div class="grid-3 mt-1">
         <div class="card stat-card">

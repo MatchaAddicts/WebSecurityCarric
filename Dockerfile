@@ -24,8 +24,8 @@ RUN npm install --production
 COPY server/ ./server/
 COPY frontend/ ./frontend/
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create uploads and data directories
+RUN mkdir -p uploads data
 
 # Expose port
 EXPOSE 2212
