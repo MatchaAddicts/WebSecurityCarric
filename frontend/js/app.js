@@ -151,8 +151,29 @@ function getCategoryClass(category) {
   return map[category] || 'cat-other';
 }
 
+// Poll for challenge solve notifications (catches solves from direct browser visits, curl, etc.)
+let _notificationPollTimer = null;
+
+function startNotificationPolling() {
+  if (_notificationPollTimer) return;
+  _notificationPollTimer = setInterval(async () => {
+    try {
+      const resp = await fetch('/api/challenges/notifications');
+      const data = await resp.json();
+      if (data.notifications && data.notifications.length > 0) {
+        for (const ch of data.notifications) {
+          showNotification(`Challenge Solved: ${ch.name} (+${ch.points}pts)`, 'success');
+        }
+      }
+    } catch (e) {
+      // Silently ignore polling errors
+    }
+  }, 3000);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   updateAuthUI();
   navigate('home');
+  startNotificationPolling();
 });

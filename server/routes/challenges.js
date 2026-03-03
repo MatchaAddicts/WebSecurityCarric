@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/schema');
 const { verifyToken, optionalAuth } = require('../middleware/auth');
-const { solveChallenge } = require('../utils/challengeSolver');
+const { solveChallenge, drainNotifications } = require('../utils/challengeSolver');
 
 // GET /api/challenges
 // List all challenges with solve status for current user
@@ -136,6 +136,13 @@ router.get('/my-progress', verifyToken, (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET /api/challenges/notifications
+// Poll endpoint: returns and clears any pending solve notifications for this session.
+router.get('/notifications', (req, res) => {
+  const notifications = drainNotifications(req.sessionId);
+  res.json({ notifications });
 });
 
 module.exports = router;

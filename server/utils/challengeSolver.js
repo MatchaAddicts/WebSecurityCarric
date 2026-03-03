@@ -1,5 +1,22 @@
 const { getDb } = require('../db/schema');
 
+// In-memory notification queue per session.
+// Keyed by sessionId, value is array of { name, points }.
+const _notificationQueue = {};
+
+function _queueNotification(sessionId, notification) {
+  if (!sessionId) return;
+  if (!_notificationQueue[sessionId]) _notificationQueue[sessionId] = [];
+  _notificationQueue[sessionId].push(notification);
+}
+
+function drainNotifications(sessionId) {
+  if (!sessionId || !_notificationQueue[sessionId]) return [];
+  const items = _notificationQueue[sessionId];
+  delete _notificationQueue[sessionId];
+  return items;
+}
+
 /**
  * Solve a challenge for the current user or session.
  * If req.user is set, solves immediately.
@@ -35,10 +52,12 @@ function _doSolve(userId, challengeKey, req) {
 
     db.prepare('INSERT INTO user_challenges (user_id, challenge_id, flag_submitted) VALUES (?, ?, ?)').run(userId, challenge.id, 'auto-detected');
 
+    const notification = { name: challenge.name, points: challenge.difficulty * 100 };
     req._challengesSolved = req._challengesSolved || [];
-    req._challengesSolved.push({ name: challenge.name, points: challenge.difficulty * 100 });
+    req._challengesSolved.push(notification);
+    if (req.sessionId) _queueNotification(req.sessionId, notification);
 
-    return { name: challenge.name, points: challenge.difficulty * 100 };
+    return notification;
   } catch (e) {
     return null;
   }
@@ -55,10 +74,12 @@ function _doSolveSession(sessionId, challengeKey, req) {
 
     db.prepare('INSERT INTO user_challenges (session_id, challenge_id, flag_submitted) VALUES (?, ?, ?)').run(sessionId, challenge.id, 'auto-detected');
 
+    const notification = { name: challenge.name, points: challenge.difficulty * 100 };
     req._challengesSolved = req._challengesSolved || [];
-    req._challengesSolved.push({ name: challenge.name, points: challenge.difficulty * 100 });
+    req._challengesSolved.push(notification);
+    _queueNotification(sessionId, notification);
 
-    return { name: challenge.name, points: challenge.difficulty * 100 };
+    return notification;
   } catch (e) {
     return null;
   }
@@ -86,4 +107,4 @@ function mergeSessionSolves(sessionId, userId) {
   }
 }
 
-module.exports = { solveChallenge, _doSolve, _doSolveSession, mergeSessionSolves };
+module.exports = { solveChallenge, _doSolve, _doSolveSession, mergeSessionSolves, drainNotifications };

@@ -53,8 +53,8 @@ const API = {
 
       const data = await response.json();
 
-      // Show challenge-solved notifications
-      this._handleChallengeSolved(data);
+      // Challenge-solved notifications are handled by the polling system
+      // in app.js (startNotificationPolling) to catch all solves uniformly.
 
       if (!response.ok) {
         throw { status: response.status, ...data };
@@ -62,9 +62,6 @@ const API = {
 
       return data;
     } catch (err) {
-      if (err._challenge_solved) {
-        this._handleChallengeSolved(err);
-      }
       if (err.status) throw err;
       throw { error: 'Network error', details: err.message };
     }
@@ -235,7 +232,6 @@ const API = {
       body: fileData
     });
     const data = await response.json();
-    this._handleChallengeSolved(data);
     return data;
   },
 
@@ -254,7 +250,6 @@ const API = {
       body: xmlData
     });
     const data = await response.json();
-    this._handleChallengeSolved(data);
     return data;
   }
 };
