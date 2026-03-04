@@ -25,26 +25,12 @@ router.get('/', optionalAuth, (req, res) => {
       ORDER BY c.category, c.difficulty
     `).all();
 
-    let solvedKeys = new Set();
-    if (req.user) {
-      const solved = db.prepare(`
-        SELECT c.key FROM user_challenges uc
-        JOIN challenges c ON uc.challenge_id = c.id
-        WHERE uc.user_id = ?
-      `).all(req.user.id);
-      solvedKeys = new Set(solved.map(s => s.key));
-    }
-    // Also check session-based solves (anonymous users)
-    if (req.sessionId) {
-      const sessionSolved = db.prepare(`
-        SELECT c.key FROM user_challenges uc
-        JOIN challenges c ON uc.challenge_id = c.id
-        WHERE uc.session_id = ? AND uc.user_id IS NULL
-      `).all(req.sessionId);
-      for (const s of sessionSolved) {
-        solvedKeys.add(s.key);
-      }
-    }
+    // Show ALL solves globally – curl from a different session still counts
+    const allSolved = db.prepare(`
+      SELECT DISTINCT c.key FROM user_challenges uc
+      JOIN challenges c ON uc.challenge_id = c.id
+    `).all();
+    const solvedKeys = new Set(allSolved.map(s => s.key));
 
     const result = challenges.map(ch => ({
       ...ch,
