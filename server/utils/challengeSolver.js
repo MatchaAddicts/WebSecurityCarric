@@ -4,14 +4,31 @@ const { getDb } = require('../db/schema');
 // Keyed by sessionId, value is array of { name, points }.
 const _notificationQueue = {};
 
+// Track sessions that are actively polling (browser tabs).
+// When a challenge is solved from ANY session, broadcast to all active ones.
+const _activeSessions = new Set();
+
+function _broadcastNotification(notification, excludeSessionId) {
+  for (const sid of _activeSessions) {
+    if (sid === excludeSessionId) continue; // solver already gets it directly
+    if (!_notificationQueue[sid]) _notificationQueue[sid] = [];
+    _notificationQueue[sid].push(notification);
+  }
+}
+
 function _queueNotification(sessionId, notification) {
   if (!sessionId) return;
   if (!_notificationQueue[sessionId]) _notificationQueue[sessionId] = [];
   _notificationQueue[sessionId].push(notification);
+  // Also broadcast to all other active sessions (e.g. browser tabs)
+  _broadcastNotification(notification, sessionId);
 }
 
 function drainNotifications(sessionId) {
-  if (!sessionId || !_notificationQueue[sessionId]) return [];
+  if (!sessionId) return [];
+  // Register this session as actively polling
+  _activeSessions.add(sessionId);
+  if (!_notificationQueue[sessionId]) return [];
   const items = _notificationQueue[sessionId];
   delete _notificationQueue[sessionId];
   return items;
